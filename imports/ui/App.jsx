@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { createContainer } from 'meteor/react-meteor-data';
+import { Meteor } from 'meteor/meteor';
 
 import { Tasks } from '../api/tasks';
 
@@ -25,12 +26,8 @@ class App extends Component {
 
     const text = ReactDOM.findDOMNode(this.refs.textInput).value.trim();
 
-    Tasks.insert({
-      text,
-      createdAt: new Date(),
-      owner: Meteor.userId(),
-      username: Meteor.user().username,
-    })
+    Meteor.call('tasks.insert', text);
+
     ReactDOM.findDOMNode(this.refs.textInput).value = '';
   }
   renderTasks(){
@@ -39,7 +36,15 @@ class App extends Component {
       filteredTasks = filteredTasks.filter(task => !task.checked);
     }
     return filteredTasks.map((task) => {
-      return <Task key={task._id} task={task} />
+      const currentUserId = this.props.currentUser && this.props.currentUser._id
+      const showPrivateButton = task.owner === currentUserId;
+      return (
+        <Task
+          key={task._id}
+          task={task}
+          showPrivateButton={showPrivateButton}
+          />
+      )
     });
   }
   render(){
@@ -82,6 +87,7 @@ App.propTypes = {
 }
 
 export default createContainer(() => {
+  Meteor.subscribe('tasks');
   return {
     tasks: Tasks.find({}, { sort: { createdAt: -1 } }).fetch(),
     incompleteCount: Tasks.find({ checked: { $ne: true} }).count(),
